@@ -419,7 +419,9 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                     uint8_t report32[142]{};
                     report32[0] = 0x32;
                     report32[1] = 0x10; // reportSeqCounter
-                    state_set(report32 + 2,sizeof(SetStateData));
+                    report32[2] = 0x10 | 0 << 6 | 1 << 7;
+                    report32[3] = 0x3f; // 63 bytes
+                    state_set(report32 + 4,sizeof(SetStateData));
                     bt_write(report32, sizeof(report32));
 
                     const auto mtu = l2cap_get_remote_mtu_for_local_cid(hid_interrupt_cid);
