@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include "bt.h"
 #include "tusb.h"
 #include "bsp/board_api.h"
 #include "config.h"
@@ -190,3 +191,12 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report, uint16_
     (void) instance;
     (void) len;
 }
+
+#ifndef ENABLE_WAKE_HID
+
+void tud_suspend_cb(bool remote_wakeup_en) {
+    printf("[USB PM] invoke tud_suspend_cb\n");
+    bt_power_off_controller();
+}
+
+#endif
