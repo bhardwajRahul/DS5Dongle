@@ -111,6 +111,25 @@ target_include_directories(wdl_resampler PUBLIC
 #set(OPUS_FIXED_POINT ON)
 add_subdirectory(lib/opus)
 
+# Phase A.3: Move libopus to RAM via .time_critical sections.
+# libopus is built by add_subdirectory(lib/opus); the target `opus` is defined in
+# the subdirectory's CMakeLists.txt, so we can't use POST_BUILD here. Instead we
+# use a stamp-file custom command + custom target that runs after opus is built
+# and before ds5-bridge links. Renames .text and .rodata of libopus.a to
+# .time_critical.* which the Pico SDK linker places in RAM (loaded from flash
+# at boot, executed from RAM at runtime). ~220 KB total relocated, ~5-6 ms boot
+# time impact for the flash-to-RAM copy.
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/opus_ram_relocate.stamp
+    COMMAND ${CMAKE_OBJCOPY} --rename-section .text=.time_critical.opus_text --rename-section .rodata=.time_critical.opus_rodata --rename-section .rodata.str1.4=.time_critical.opus_strings $<TARGET_FILE:opus>
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/opus_ram_relocate.stamp
+    DEPENDS $<TARGET_FILE:opus>
+    COMMENT "Phase A.3: relocating libopus to .time_critical.* sections"
+    VERBATIM
+)
+add_custom_target(opus_ram_relocate ALL DEPENDS ${CMAKE_BINARY_DIR}/opus_ram_relocate.stamp)
+add_dependencies(ds5-bridge opus_ram_relocate)
+
 target_compile_options(wdl_resampler PRIVATE -fsigned-char)
 
 # Phase A.2: Move WDL_Resampler hot-path methods to RAM via .time_critical sections.
