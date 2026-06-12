@@ -33,7 +33,7 @@
 // #define BUFFER_LENGTH     48
 #define MIC_CHANNELS      1
 #define MIC_FRAMES        480
-#define MIC_OPUS_SIZE     71
+#define MIC_OPUS_SIZE     71   // bytes per opus-encoded mic frame from the DualSense
 
 using std::clamp;
 using std::max;
@@ -70,7 +70,13 @@ void __not_in_flash_func(audio_loop)() {
     if (queue_try_remove(&mic_decode_fifo, &mic_pb)) {
         uint16_t written = tud_audio_write(mic_pb.data, mic_pb.len);
         if (written != mic_pb.len) {
+            // Gated behind ENABLE_VERBOSE: when the host has not opened the mic
+            // interface (the common case -- most games never do) tud_audio_write
+            // short-writes every frame, so an unconditional log would flood
+            // core0's hot path with the newlib formatting chain.
+#if ENABLE_VERBOSE
             printf("[Audio] Warning: USB mic FIFO wrote %u/%u bytes\n", written, mic_pb.len);
+#endif
         }
     }
 
@@ -193,7 +199,7 @@ static WDL_Resampler resampler_audio;
 // Speaker path: USB OUT PCM (core0 audio_fifo) -> resample -> opus encode ->
 // opus_buf for the haptics/speaker BT report. Non-blocking so core1 can also
 // service the mic path. Kept in RAM to remove XIP miss latency from the loop.
-void __not_in_flash_func(speaker_proc)() {
+static void __not_in_flash_func(speaker_proc)() {
     static audio_raw_element audio_element{};
     if (!queue_try_remove(&audio_fifo, &audio_element)) {
         return;
@@ -216,7 +222,7 @@ void __not_in_flash_func(speaker_proc)() {
 
 // Mic path: opus packets from the controller (core0 mic_fifo) -> opus decode ->
 // PCM into mic_decode_fifo for audio_loop to push to the USB IN endpoint.
-void __not_in_flash_func(mic_proc)() {
+static void __not_in_flash_func(mic_proc)() {
     static mic_element mic_packet{};
     if (!queue_try_remove(&mic_fifo, &mic_packet)) {
         return;
@@ -267,7 +273,11 @@ void __not_in_flash_func(core1_entry)() {
     }
 }
 
-void mic_add_queue(uint8_t *data) {
+// data points at the opus mic payload, len is the bytes available there.
+// In RAM (consistent with the BT-receive path) and validates len so a short
+// or malformed report can't over-read past the packet buffer.
+void __not_in_flash_func(mic_add_queue)(uint8_t *data, uint16_t len) {
+    if (len < MIC_OPUS_SIZE) return;
     static mic_element mic_packet{};
     memcpy(mic_packet.data, data, MIC_OPUS_SIZE);
     if (queue_is_full(&mic_fifo)) {

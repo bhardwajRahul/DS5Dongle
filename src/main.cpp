@@ -90,8 +90,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
     if (channel == INTERRUPT && len > 2 && data[1] == 0x31) {
         // Mic audio: controller signals mic payload via bit1 of data[2];
         // the opus-encoded mic frame starts at data+4.
-        if (data[2] >> 1 & 1) {
-            mic_add_queue(data + 4);
+        if ((data[2] >> 1) & 1) {
+            if (len >= 4) {
+                mic_add_queue(data + 4, len - 4);
+            }
             return;
         }
         if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
