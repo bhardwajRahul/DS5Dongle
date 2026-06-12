@@ -224,7 +224,12 @@ void __not_in_flash_func(mic_proc)() {
     static int16_t decoded_data[MIC_FRAMES * MIC_CHANNELS];
     auto decoded_samples = opus_decode(decoder, mic_packet.data, MIC_OPUS_SIZE, decoded_data, MIC_FRAMES, false);
     if (decoded_samples <= 0) {
+        // Gated behind ENABLE_VERBOSE: printf pulls the newlib formatting chain
+        // (flash) onto core1's path, which would break a gateless BOOTSEL poll.
+        // Release builds compile this out so core1 never reaches flash here.
+#if ENABLE_VERBOSE
         printf("[Audio] OpusDecoder decode failed: %d\n", decoded_samples);
+#endif
         return;
     }
     static mic_decode_element decode_element{};

@@ -112,6 +112,7 @@ add_executable(ds5-bridge
         src/config.cpp
         src/cmd.cpp
         src/state_mgr.cpp
+        src/ram_mem.c
 )
 
 if (ENABLE_BATT_LED)
@@ -245,6 +246,19 @@ relocate_to_ram(src/rp2_common/pico_cyw43_arch/cyw43_arch.c.o
 relocate_to_ram(lib/btstack/src/btstack_run_loop.c.o
     ".text.btstack_run_loop_base_poll_data_sources=.time_critical.btstack_run_loop_base_poll_data_sources|.text.btstack_run_loop_poll_data_sources_from_irq=.time_critical.btstack_run_loop_poll_data_sources_from_irq"
     "Phase B.4: btstack run-loop poll -> RAM")
+
+# Phase B.5: RAM-resident mem ops. core1's audio loop calls memcpy/memset every
+# frame (directly and inside libopus), and on RP2350 the Pico SDK uses newlib's
+# memcpy/memset, which live in flash -- so core1 still executes flash code during
+# steady-state audio. The pico/ROM mem-ops variant does not link on RP2350 (the
+# bootrom no longer exports ROM_FUNC_MEMCPY/MEMSET), so src/ram_mem.c provides
+# RAM-resident (.time_critical) overrides instead. Built with -fno-builtin and
+# -fno-tree-loop-distribute-patterns so the compiler does not turn the copy loops
+# back into calls to memcpy/memset (which would self-recurse). This removes the
+# dominant remaining flash hazard for a gateless BOOTSEL poll.
+# NOTE: re-validate audio at 150 MHz, since these replace newlib's mem ops.
+set_source_files_properties(src/ram_mem.c PROPERTIES COMPILE_OPTIONS
+        "-fno-builtin;-fno-tree-loop-distribute-patterns")
 
 target_compile_options(ds5-bridge PRIVATE -fsigned-char)
 target_compile_definitions(wdl_resampler PRIVATE
