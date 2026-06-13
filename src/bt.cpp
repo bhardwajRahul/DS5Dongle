@@ -371,17 +371,12 @@ static void bt_bootsel_hold_action() {
 // Hold threshold: 15 consecutive pressed samples = ~1500ms.
 // Also services the deferred blacklist persist on the same cadence.
 void bt_bootsel_check() {
-    // Gate on "no controller currently connected" - guarantees no audio is
-    // streaming (audio requires the HID interrupt L2CAP channel to be open),
-    // so the QSPI CSn float in bt_read_bootsel() cannot collide with the
-    // audio path. Reset FSM if we were mid-press when a controller connected.
-    if (hid_interrupt_cid != 0) {
-        if (bt_bootsel_fsm != 0) {
-            bt_bootsel_fsm = 0;
-            bt_bootsel_press_samples = 0;
-        }
-        return;
-    }
+    // No connection gate: the BOOTSEL button is polled even while a controller
+    // is connected and audio is streaming. This is safe because bt_read_bootsel()
+    // uses flash_safe_execute(), which parks core1 (the audio core) for the QSPI
+    // CSn float -- see flash_safe_execute_core_init() in core1_entry and
+    // PICO_FLASH_ASSUME_CORE1_SAFE=0. Click-free audio across the poll additionally
+    // requires the audio path to be RAM-resident (this branch is stacked on that).
 
     uint32_t now = to_ms_since_boot(get_absolute_time());
     if (now - bt_bootsel_last_check_ms < 100) return;
