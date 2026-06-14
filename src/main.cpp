@@ -225,13 +225,13 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
             }
         }
     }
-    if (report_id == 0x80 && buffer[0] == 0x66) {
+    if (report_id == 0x80 && bufsize >= 2 && buffer[0] == 0x66) {
 #if ENABLE_VERBOSE
         printf("[HID] Receive 0x66 setting config, funcid:0x%02X\n", buffer[1]);
 #endif
 
-        // 0x80 0x66 cmd_id buffer...
-        pico_cmd_set(buffer[1], buffer + 1, bufsize - 2);
+        // 0x80 0x66 cmd_id payload...
+        pico_cmd_set(buffer[1], buffer + 2, bufsize - 2);
         return;
     }
     if (report_id == 0x80 ||
