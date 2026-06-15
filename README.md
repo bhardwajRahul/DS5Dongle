@@ -200,6 +200,18 @@ Use `tools/build-macos.sh --clean` to rebuild from scratch, or
 to the required Pico SDK and TinyUSB versions. If Homebrew's `arm-none-eabi-gcc` formula is installed without standard C
 headers, the script asks to install the complete `gcc-arm-embedded` cask and points CMake at that toolchain.
 
+## Xbox Game Bar (optional)
+
+The **PS button = Xbox Game Bar** toggle in the [web config](#configuration) maps the controller's PS button to
+keyboard shortcuts, sent over the same HID keyboard interface used by [Wake-on-PS](#wake-on-ps-optional):
+
+- **Short press** (tap and release) → `Win`+`G`, which opens the **Xbox Game Bar** overlay.
+- **Long press** (hold ≥ 750 ms) → `Win`+`Tab`, which opens **Task View**.
+
+The toggle is off by default, and the keyboard interface is only enumerated while it (or wake) is enabled. Note this
+only *opens* the Game Bar: the DualSense is not an XInput gamepad, so Windows won't let the controller navigate the
+overlay — use a mouse or keyboard for that.
+
 ## Wake-on-PS (optional)
 
 Enabling the **Wake PC from sleep on PS button** toggle in the [web config](#configuration) makes the dongle present a
