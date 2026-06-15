@@ -49,11 +49,6 @@ static bool device_found = false;
 static bool new_pair = false; // 只有新匹配的设备才用创建channel，自动重连走的是service
 bool bt_inquiring = false;
 
-// BOOTSEL click+hold state
-// state machine: 0=idle, 1=pressed (counting samples), 2=held (after hold fired)
-static int bt_bootsel_fsm = 0;
-static int bt_bootsel_press_samples = 0;
-static uint32_t bt_bootsel_last_check_ms = 0;
 // LED triple-flash confirmation state for clear-all action
 static int bt_clear_flash_toggles_remaining = 0;
 static uint32_t bt_clear_flash_last_toggle_ms = 0;
@@ -255,7 +250,7 @@ static void bt_blacklist_remove(bd_addr_t addr) {
 // modification, persist it to flash. The settle window ensures we never
 // take the flash blackout while the controller is still negotiating its
 // initial HID/audio state right after pair completion.
-static void bt_blacklist_persist_if_dirty() {
+void bt_blacklist_persist_if_dirty() {
     if (!bt_blacklist_dirty) return;
     uint32_t now = to_ms_since_boot(get_absolute_time());
     if (now - bt_blacklist_dirty_ms < 5000) return;
@@ -264,48 +259,11 @@ static void bt_blacklist_persist_if_dirty() {
     bt_blacklist_persist();
 }
 
-// Read BOOTSEL button by briefly floating the QSPI CSn line.
-// Must run with both cores in a known-safe state - if core 1 attempts an
-// XIP code read while CSn is floating, it gets garbage and the CYW43
-// driver misbehaves (manifests as immediate BT disconnect on audio start).
-// flash_safe_execute() handles the multicore coordination using the SDK's
-// official mechanism; BTstack uses the same one for its TLV flash writes.
-static void __no_inline_not_in_flash_func(bt_bootsel_read_cb)(void *param) {
-    bool *out = (bool *) param;
-    const uint CS_PIN_INDEX = 1;
-
-    hw_write_masked(&ioqspi_hw->io[CS_PIN_INDEX].ctrl,
-                    GPIO_OVERRIDE_LOW << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
-                    IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
-
-    for (volatile int i = 0; i < 1000; ++i);
-
-#if PICO_RP2350
-    *out = !(sio_hw->gpio_hi_in & SIO_GPIO_HI_IN_QSPI_CSN_BITS);
-#else
-    *out = !(sio_hw->gpio_hi_in & (1u << CS_PIN_INDEX));
-#endif
-
-    hw_write_masked(&ioqspi_hw->io[CS_PIN_INDEX].ctrl,
-                    GPIO_OVERRIDE_NORMAL << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
-                    IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
-}
-
-static bool bt_read_bootsel() {
-    bool pressed = false;
-    // 100ms timeout for the safe-state coordination; bt_bootsel_check()
-    // is gated on hid_interrupt_cid == 0, so this can never run during
-    // active audio anyway.
-    int rc = flash_safe_execute(bt_bootsel_read_cb, &pressed, 100);
-    if (rc != PICO_OK) return false;
-    return pressed;
-}
-
 // BOOTSEL click action: trigger a fresh inquiry to pair another controller.
 // If currently connected, disconnect (which triggers inquiry restart via the
 // disconnect handler) - link key is preserved so the disconnected controller
 // can still reconnect later.
-static void bt_bootsel_click_action() {
+void bt_bootsel_click_action() {
     printf("[BT] BOOTSEL click - fresh inquiry\n");
     if (hid_interrupt_cid != 0) {
         bt_disconnect();
@@ -321,7 +279,7 @@ static void bt_bootsel_click_action() {
 // across power-cycles. The MAC is removed from the blacklist when the user
 // explicitly re-pairs the controller (in PS+Share mode) and L2CAP HID opens.
 // Triggers a six-flash LED confirmation via bt_inquiring_led().
-static void bt_bootsel_hold_action() {
+void bt_bootsel_hold_action() {
     printf("[BT] BOOTSEL held - clearing all pairings\n");
 
     // Reset and rebuild blacklist from currently stored keys
@@ -365,55 +323,6 @@ static void bt_bootsel_hold_action() {
 
     bt_clear_flash_toggles_remaining = 12;
     bt_clear_flash_last_toggle_ms = to_ms_since_boot(get_absolute_time());
-}
-
-// Poll BOOTSEL at 10Hz; differentiate click vs hold.
-// Hold threshold: 15 consecutive pressed samples = ~1500ms.
-// Also services the deferred blacklist persist on the same cadence.
-void bt_bootsel_check() {
-    // No connection gate: the BOOTSEL button is polled even while a controller
-    // is connected and audio is streaming. This is safe because bt_read_bootsel()
-    // uses flash_safe_execute(), which parks core1 (the audio core) for the QSPI
-    // CSn float -- see flash_safe_execute_core_init() in core1_entry and
-    // PICO_FLASH_ASSUME_CORE1_SAFE=0. Click-free audio across the poll additionally
-    // requires the audio path to be RAM-resident (this branch is stacked on that).
-
-    uint32_t now = to_ms_since_boot(get_absolute_time());
-    if (now - bt_bootsel_last_check_ms < 100) return;
-    bt_bootsel_last_check_ms = now;
-
-    bt_blacklist_persist_if_dirty();
-
-    bool pressed = bt_read_bootsel();
-
-    switch (bt_bootsel_fsm) {
-        case 0: // IDLE
-            if (pressed) {
-                bt_bootsel_fsm = 1;
-                bt_bootsel_press_samples = 1;
-            }
-            break;
-        case 1: // PRESSED - counting samples
-            if (pressed) {
-                bt_bootsel_press_samples++;
-                if (bt_bootsel_press_samples >= 15) {
-                    bt_bootsel_fsm = 2;
-                    bt_bootsel_hold_action();
-                }
-            } else {
-                // Released before hold threshold - it was a click
-                bt_bootsel_fsm = 0;
-                bt_bootsel_press_samples = 0;
-                bt_bootsel_click_action();
-            }
-            break;
-        case 2: // HELD - waiting for release (hold already fired)
-            if (!pressed) {
-                bt_bootsel_fsm = 0;
-                bt_bootsel_press_samples = 0;
-            }
-            break;
-    }
 }
 
 void bt_inquiring_led() {
