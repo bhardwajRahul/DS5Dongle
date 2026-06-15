@@ -219,8 +219,26 @@ After enabling the toggle (then **Reconnect USB** so the interface re-enumerates
 3. Sleep the PC; press any button on the controller; the PC should wake within ~1 s.
 4. After a wake, `powercfg /lastwake` should attribute the wake to the HID Keyboard Device.
 
-> On some PCs `SelectiveSuspendEnabled` is only written at first install, so a runtime toggle may need that registry
-> value set manually (or the device re-installed) before wake works.
+> Wake also needs `SelectiveSuspendEnabled = 1` (a `REG_DWORD`) on the controller's audio interface (`MI_00`). Windows
+> only writes it at first install, so a runtime toggle may need it set manually. It lives under each per-instance
+> `Device Parameters` key:
+>
+> ```
+> HKLM\SYSTEM\CurrentControlSet\Enum\USB\VID_054C&PID_0CE6&MI_00\<instance>\Device Parameters
+>     SelectiveSuspendEnabled    (REG_DWORD) = 1
+> ```
+>
+> `PID_0CE6` is the DualSense (`PID_0DF2` for the Edge), and `<instance>` is device/port-specific (e.g.
+> `6&212078ea&1&0000`), so there can be more than one node — set it on every one. An elevated PowerShell one-liner that
+> covers all present instances:
+>
+> ```powershell
+> Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Enum\USB\VID_054C&PID_0CE6&MI_00' | ForEach-Object {
+>   New-ItemProperty "$($_.PSPath)\Device Parameters" SelectiveSuspendEnabled -Value 1 -PropertyType DWord -Force }
+> ```
+>
+> Then Reconnect USB or reboot. (Re-installing the device — clearing its Windows device cache and replugging — also
+> makes Windows write the value itself.)
 
 ## Roadmap
 
