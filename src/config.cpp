@@ -106,7 +106,7 @@ void config_valid() {
         body->enable_wake = 0;
         printf("[Config] enable_wake is invalid\n");
     }
-    if (body->trigger_reduce > 7) {
+    if (body->trigger_reduce > 10) {
         body->trigger_reduce = 0;
         printf("[Config] trigger_reduce is invalid\n");
     }

@@ -72,7 +72,7 @@ FIELDS = [
     ("disable_mic",        "u8",    lambda v: v in (0, 1),       "0/1 (disable controller mic)"),
     ("disable_speaker",    "u8",    lambda v: v in (0, 1),       "0/1 (disable speaker/headset)"),
     ("enable_wake",        "u8",    lambda v: v in (0, 1),       "0/1 (wake host on PS press)"),
-    ("trigger_reduce",     "u8",    lambda v: 0 <= v <= 7,       "[0, 7] (0: auto)"),
+    ("trigger_reduce",     "u8",    lambda v: 0 <= v <= 10,       "[0, 10] (0: auto)"),
 ]
 FIELD_NAMES = [f[0] for f in FIELDS]
 # Little-endian, no padding -- matches __attribute__((packed)) Config_body.
