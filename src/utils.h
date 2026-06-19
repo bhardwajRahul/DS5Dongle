@@ -357,7 +357,7 @@ struct __attribute__((packed)) SetStateData { // 47
 /*    */
 /*    */ // MotorPowerLevel
 /*36.0*/ uint8_t RumbleMotorPowerReduction : 4; // 0x0-0x7 (no 0x8?) Applied in 12.5% reductions
-/*36.4*/ uint8_t TriggerMotorPowerReduction : 4;  // 0x0-0x7 (no 0x8?) Applied in 12.5% reductions
+/*36.4*/ uint8_t TriggerMotorPowerReduction : 4;  // 0x0-0xA
 /*    */
 /*    */ // AudioControl2
 /*37.0*/ uint8_t SpeakerCompPreGain: 3; // additional speaker volume boost
