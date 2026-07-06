@@ -126,43 +126,47 @@ void __not_in_flash_func(audio_bt_task)() {
     pkt[1] = reportSeqCounter << 4;
     reportSeqCounter = (reportSeqCounter + 1) & 0x0F;
     pkt[2] = 0x11 | 0 << 6 | 1 << 7;
-    pkt[3] = 7;
+    pkt[3] = 6;
     pkt[4] = mic_enabled ? 0b01111111 : 0b01111110;
+    // byte 4 研究
+    // bit 6 是必须的
+    // 其余 bit 每多设置一个为0，就需要将pkt[3] - 1，然后将下面这些缩短一个字节的数据。
+    // 最终实测，可以只保留一个 buf_len + packetCounter
+    // pkt 5-7 的注释是根据 Nielk 采样到的数据进行猜测。但是实际上修改还是发现有任何效果
     const auto buf_len = cfg.audio_buffer_length;
-    pkt[5] = 0x51; // VolumeHeadphones
-    pkt[6] = 0x1f; // VolumeMic
-    pkt[7] = 0x62; // VolumeSpeaker
+    pkt[5] = buf_len; // VolumeHeadphones
+    pkt[6] = buf_len; // VolumeMic
+    pkt[7] = buf_len; // VolumeSpeaker
     pkt[8] = buf_len; // AudioBufferLength
-    pkt[9] = buf_len;
-    pkt[10] = packetCounter += 2;
-    pkt[11] = 0x12 | 1 << 6 | 1 << 7;
-    pkt[12] = SAMPLE_SIZE;
+    pkt[9] = packetCounter += 2;
+    pkt[10] = 0x12 | 1 << 6 | 1 << 7;
+    pkt[11] = SAMPLE_SIZE;
     static haptics_element haptics_pb{};
     if (queue_get_level(&haptics_fifo) >= 2) {
         if (queue_try_remove(&haptics_fifo, &haptics_pb)) {
-            memcpy(pkt + 13, haptics_pb.data,SAMPLE_SIZE);
+            memcpy(pkt + 12, haptics_pb.data,SAMPLE_SIZE);
         } else {
             printf("[Audio] Warning: Haptics queue remove failed\n");
         }
         if (queue_try_remove(&haptics_fifo, &haptics_pb)) {
-            memcpy(pkt + 13 + SAMPLE_SIZE, haptics_pb.data,SAMPLE_SIZE);
+            memcpy(pkt + 12 + SAMPLE_SIZE, haptics_pb.data,SAMPLE_SIZE);
         } else {
             printf("[Audio] Warning: Haptics queue remove failed\n");
         }
     }
 #if !DISABLE_SPEAKER_PROC
     if (speaker_enabled) {
-        pkt[141] = (plug_headset ? 0x16 : 0x13) | 1 << 6 | 1 << 7;
-        pkt[142] = SPEAKER_OPUS_SIZE;
+        pkt[140] = (plug_headset ? 0x16 : 0x13) | 1 << 6 | 1 << 7;
+        pkt[141] = SPEAKER_OPUS_SIZE;
         static audio_spk_element spk_pb{};
         if (queue_get_level(&audio_spk_fifo) >= 2) {
             if (queue_try_remove(&audio_spk_fifo, &spk_pb)) {
-                memcpy(pkt + 143, spk_pb.data,SPEAKER_OPUS_SIZE);
+                memcpy(pkt + 142, spk_pb.data,SPEAKER_OPUS_SIZE);
             } else {
                 printf("[Audio] Warning: Speaker queue remove failed\n");
             }
             if (queue_try_remove(&audio_spk_fifo, &spk_pb)) {
-                memcpy(pkt + 143 + SPEAKER_OPUS_SIZE, spk_pb.data,SPEAKER_OPUS_SIZE);
+                memcpy(pkt + 142 + SPEAKER_OPUS_SIZE, spk_pb.data,SPEAKER_OPUS_SIZE);
             } else {
                 printf("[Audio] Warning: Speaker queue remove failed\n");
             }
