@@ -103,6 +103,22 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
             set_headset(data[56] & 1);
         }
+        if (((data[56] >> 2) & 1) != ((interrupt_in_data[53] >> 2) & 1)) {
+            const SetStateData state{
+                .AllowMuteLight = 1,
+                .MuteLightMode = ((data[56] >> 2) & 1) ? MuteLight::On : MuteLight::Off,
+            };
+            update_state(state);
+        }
+        /*if (((data[12] >> 2) & 1) != ((interrupt_in_data[9] >> 2) & 1)) {
+            // 如果开启了扬声器静音，这时候再按下麦克风静音，会导致扬声器静音接触。实测有线连接 DS5 也会有这个 bug
+            // 有 bug，会导致游戏设置与固件设置冲突。但是实测有线连接在游戏外也不支持开关静音，先不做了。
+            const SetStateData state{
+                .AllowAudioMute = 1,
+                .MicMute = !((interrupt_in_data[56] >> 2) & 1),
+            };
+            update_state(state);
+        }*/
 
         // Wake-on-PS must observe every BT input report regardless of polling
         // mode: the wake feature has its own state to maintain (button-byte
@@ -227,7 +243,27 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
                 outputData[1] = reportSeqCounter << 4;
                 reportSeqCounter = (reportSeqCounter + 1) & 0x0F;
                 outputData[2] = 0x10;
-                memcpy(outputData + 3, buffer + 1, bufsize - 1);
+                SetStateData state{};
+                memcpy(&state,buffer + 1,sizeof(SetStateData));
+
+                const auto &config = get_config();
+                if (config.trigger_reduce > 0) {
+                    state.AllowMotorPowerLevel = 1;
+                    state.TriggerMotorPowerReduction = config.trigger_reduce;
+                }
+                if (config.speaker_gain > 0) {
+                    state.AllowAudioControl2 = 1;
+                    state.SpeakerCompPreGain = config.speaker_gain;
+                }
+                if (config.lock_volume) {
+                    state.AllowHeadphoneVolume = 0;
+                    state.AllowMicVolume = 0;
+                    state.AllowSpeakerVolume = 0;
+                    state.AllowAudioMute = 0;
+                    state.AllowMuteLight = 0;
+                }
+
+                memcpy(outputData + 3, &state, sizeof(SetStateData));
                 bt_write(outputData, sizeof(outputData));
                 break;
             }

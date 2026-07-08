@@ -10,8 +10,8 @@
 struct __attribute__((packed)) Config_body {
     uint8_t config_version; // Config Version
     float haptics_gain; // [1.0,2.0]
-    uint8_t speaker_volume; // [0,127]
-    uint8_t headset_volume; // [0,127] // max 0x7f
+    uint8_t speaker_volume; // [0,127] // unused
+    uint8_t headset_volume; // [0,127] // max 0x7f // unused
     uint8_t speaker_gain; // [0,7] (0: auto)
     uint8_t inactive_time; // [0,60] min (0: disable)
     uint8_t disable_pico_led; // bool
