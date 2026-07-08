@@ -387,7 +387,7 @@ void __not_in_flash_func(core1_entry)() {
     // core1. Requires PICO_FLASH_ASSUME_CORE1_SAFE=0.
     flash_safe_execute_core_init();
     int error = 0;
-    encoder = opus_encoder_create(48000, 2,OPUS_APPLICATION_RESTRICTED_LOWDELAY, &error);
+    encoder = opus_encoder_create(48000, 2,OPUS_APPLICATION_AUDIO, &error);
     if (error != 0) {
         printf("[Audio] OpusEncoder create failed\n");
         return;
