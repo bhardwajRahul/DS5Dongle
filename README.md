@@ -294,7 +294,8 @@ After enabling the toggle (then **Reconnect USB** so the interface re-enumerates
 ## References
 
 - [rafaelvaloto/Pico_W-Dualsense](https://github.com/rafaelvaloto/Pico_W-Dualsense) — Project inspiration
-- [egormanga/SAxense](https://github.com/egormanga/SAxense) — Bluetooth Haptics POC
+- [egormanga/SAxense](https://apps.sdore.me/SAxense) — Bluetooth Haptics POC
 - [https://controllers.fandom.com/wiki/Sony_DualSense](https://controllers.fandom.com/wiki/Sony_DualSense) - DualSense
   data report structure documentation
 - [Paliverse/DualSenseX](https://github.com/Paliverse/DualSenseX) — Speaker report packet
+- [Nielk1’s research report and packet samples](https://github.com/egormanga/SAxense/issues/1)

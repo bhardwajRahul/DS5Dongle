@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstring>
 
-#include "state_mgr.h"
+#include "bt.h"
 #include "utils.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
@@ -169,13 +169,16 @@ void set_config(const uint8_t *new_config, const uint16_t len) {
     }else {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true);
     }
-    set_volume(config.body.speaker_volume,config.body.headset_volume);
-    if (config.body.speaker_gain != 0) {
-        set_gain(config.body.speaker_gain);
+    SetStateData state{};
+    if (config.body.trigger_reduce > 0) {
+        state.AllowMotorPowerLevel = 1;
+        state.TriggerMotorPowerReduction = config.body.trigger_reduce;
     }
-    if (config.body.trigger_reduce != 0) {
-        set_trigger_reduce(config.body.trigger_reduce);
+    if (config.body.speaker_gain > 0) {
+        state.AllowAudioControl2 = 1;
+        state.SpeakerCompPreGain = config.body.speaker_gain;
     }
+    update_state(state);
 }
 
 void set_config(const Config_body &new_config) {
