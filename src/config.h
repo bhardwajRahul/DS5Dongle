@@ -20,11 +20,11 @@ struct __attribute__((packed)) Config_body {
     uint8_t controller_mode; // 0: DS5, 1: DSE, 2: Auto
     uint8_t enable_usb_sn; // 0: disable,1: enable
     uint8_t ps_shortcut_enabled; // 0: disabled, 1: enabled (Xbox Game Bar via HID keyboard)
-    uint8_t disable_mic; // bool: 0 enable (default), 1 disable controller mic
-    uint8_t disable_speaker; // bool: 0 enable (default), 1 disable speaker/headset
+    uint8_t mic_select; // 0: auto, 1: builtin, 2: headphone, 3: disable
+    uint8_t speaker_select; // 0: auto, 1: builtin, 2: headphone, 3: disable
     uint8_t enable_wake; // bool: 0 disabled (default), 1 wake host on PS press (USB remote wakeup)
     uint8_t trigger_reduce; // [0,10] (0: auto)
-    uint8_t lock_volume;// bool
+    uint8_t lock_volume; // bool
 };
 
 struct __attribute__((packed)) Config {

@@ -94,13 +94,13 @@ void config_valid() {
         body->ps_shortcut_enabled = 0;
         printf("[Config] ps_shortcut_enabled is invalid\n");
     }
-    if (body->disable_mic > 1) {
-        body->disable_mic = 0;
-        printf("[Config] disable_mic is invalid\n");
+    if (body->mic_select > 3) {
+        body->mic_select = 0;
+        printf("[Config] mic_select is invalid\n");
     }
-    if (body->disable_speaker > 1) {
-        body->disable_speaker = 0;
-        printf("[Config] disable_speaker is invalid\n");
+    if (body->speaker_select > 3) {
+        body->speaker_select = 0;
+        printf("[Config] speaker_select is invalid\n");
     }
     if (body->enable_wake > 1) {
         body->enable_wake = 0;
@@ -178,6 +178,8 @@ void set_config(const uint8_t *new_config, const uint16_t len) {
         state.AllowAudioControl2 = 1;
         state.SpeakerCompPreGain = config.body.speaker_gain;
     }
+    state.AllowAudioControl = 1;
+    state.MicSelect = config.body.mic_select;
     update_state(state);
 }
 

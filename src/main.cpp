@@ -255,6 +255,10 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
                     state.AllowAudioControl2 = 1;
                     state.SpeakerCompPreGain = config.speaker_gain;
                 }
+                if (config.mic_select != 0) {
+                    state.AllowAudioControl = 1;
+                    state.MicSelect = config.mic_select;
+                }
                 if (config.lock_volume) {
                     state.AllowHeadphoneVolume = 0;
                     state.AllowMicVolume = 0;

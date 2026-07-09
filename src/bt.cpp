@@ -727,7 +727,9 @@ static void __not_in_flash_func(l2cap_packet_handler)(uint8_t packet_type, uint1
 
                     init_feature();
                     SetStateData state = {
+                        .AllowAudioControl = 1,
                         .AllowLedColor = 1,
+                        .MicSelect = get_config().mic_select,
                         .AllowLightBrightnessChange = 1,
                         .AllowColorLightFadeAnimation = 1,
                         .LightFadeAnimation = LightFadeAnimation::FadeOut,

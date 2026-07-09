@@ -95,15 +95,15 @@ void update_mic_status() {
     reportSeqCounter = (reportSeqCounter + 1) & 0x0F;
     pkt[2] = 0x11 | 0 << 6 | 1 << 7;
     pkt[3] = 1;
-    pkt[4] = (mic_active && !get_config().disable_mic) ? 0b00000011 : 0b00000010;
+    pkt[4] = (mic_active && get_config().mic_select != 3) ? 0b00000011 : 0b00000010;
     bt_write(pkt, sizeof(pkt));
 }
 
 void __not_in_flash_func(audio_bt_task)() {
     const Config_body &cfg = get_config();
-    const bool mic_enabled = mic_active && !cfg.disable_mic;
+    const bool mic_enabled = mic_active && cfg.mic_select != 3;
 #if !DISABLE_SPEAKER_PROC
-    const bool speaker_enabled = !cfg.disable_speaker;
+    const bool speaker_enabled = cfg.speaker_select != 3;
 #endif
 
     if (queue_get_level(&haptics_fifo) < 2) {
@@ -150,7 +150,10 @@ void __not_in_flash_func(audio_bt_task)() {
     }
 #if !DISABLE_SPEAKER_PROC
     if (speaker_enabled) {
-        pkt[140] = (plug_headset ? 0x16 : 0x13) | 1 << 6 | 1 << 7;
+        pkt[140] = ((
+            cfg.speaker_select == 2 || // lock headphone
+            (cfg.speaker_select == 0 && plug_headset) // auto
+            ) ? 0x16 : 0x13) | 1 << 6 | 1 << 7;
         pkt[141] = SPEAKER_OPUS_SIZE;
         static audio_spk_element spk_pb{};
         if (queue_get_level(&audio_spk_fifo) >= 2) {
@@ -172,8 +175,8 @@ void __not_in_flash_func(audio_bt_task)() {
 
 void __not_in_flash_func(audio_loop)() {
     const Config_body &cfg = get_config();
-    const bool mic_enabled = mic_active && !cfg.disable_mic;
-    const bool speaker_enabled = !cfg.disable_speaker;
+    const bool mic_enabled = mic_active && cfg.mic_select != 3;
+    const bool speaker_enabled = cfg.speaker_select != 3;
 
     // Mic playback: drain decoded mic PCM into the USB IN endpoint
     static mic_decode_element mic_pb{};
@@ -317,7 +320,7 @@ static void __not_in_flash_func(speaker_proc)() {
     if (!queue_try_remove(&audio_fifo, &audio_element)) {
         return;
     }
-    if (get_config().disable_speaker) {
+    if (get_config().speaker_select == 3) {
         return;
     }
     // 将 512 frames 重采样成 480 frames 以解决噪音问题。感谢 @Junhoo
@@ -358,7 +361,7 @@ static void __not_in_flash_func(mic_proc)() {
     if (!queue_try_remove(&mic_fifo, &mic_packet)) {
         return;
     }
-    if (!mic_active || get_config().disable_mic) {
+    if (!mic_active || get_config().mic_select == 3) {
         return;
     }
     static mic_decode_element decode_element{};
@@ -415,7 +418,7 @@ void __not_in_flash_func(core1_entry)() {
 // In RAM (consistent with the BT-receive path) and validates len so a short
 // or malformed report can't over-read past the packet buffer.
 void __not_in_flash_func(mic_add_queue)(uint8_t *data, uint16_t len) {
-    if (!mic_active || get_config().disable_mic) return;
+    if (!mic_active || get_config().mic_select == 3) return;
     if (len < MIC_OPUS_SIZE) return;
     static mic_element mic_packet{};
     memcpy(mic_packet.data, data, MIC_OPUS_SIZE);
