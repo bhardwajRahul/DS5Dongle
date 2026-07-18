@@ -73,11 +73,6 @@ struct haptics_element {
     uint8_t data[64];
 };
 
-// Streaming state for hardware-throttled USB microphone transmission
-static mic_decode_element active_mic_frame{};
-static uint32_t active_frame_offset = 0;
-static bool has_active_frame = false;
-
 void set_headset(bool state) {
     plug_headset = state;
 }
@@ -93,26 +88,14 @@ bool audio_mic_active() {
     return mic_active;
 }
 
-// Avoid saturating the Bluetooth bandwidth with redundant state packets.
-// We only transmit the mic status packet to the controller when the state 
-// actually changes (e.g., when the host starts or stops recording).
 void update_mic_status() {
-    static bool last_sent_state = false;
-    const bool current_state = (mic_active && get_config().mic_select != 3);
-    
-    if (current_state == last_sent_state) {
-        return; 
-    }
-    last_sent_state = current_state;
-
     uint8_t pkt[142]{};
     pkt[0] = 0x32;
     pkt[1] = reportSeqCounter << 4;
     reportSeqCounter = (reportSeqCounter + 1) & 0x0F;
     pkt[2] = 0x11 | 0 << 6 | 1 << 7;
     pkt[3] = 1;
-    // pkt[4] = (mic_active && get_config().mic_select != 3) ? 0b00000011 : 0b00000010;
-    pkt[4] = current_state ? 0b00000011 : 0b00000010;
+    pkt[4] = (mic_active && get_config().mic_select != 3) ? 0b00000011 : 0b00000010;
     bt_write(pkt, sizeof(pkt));
 }
 
@@ -229,6 +212,11 @@ void __not_in_flash_func(audio_loop)() {
     // overflows and digital echo on strict OS stacks like macOS CoreAudio), 
     // we query TinyUSB's transmit FIFO capacity and feed it 1ms slices (192 bytes)
     // precisely when the host is ready to consume them.
+
+    // Streaming state for hardware-throttled USB microphone transmission
+    static mic_decode_element active_mic_frame{};
+    static uint32_t active_frame_offset = 0;
+    static bool has_active_frame = false;
 
     if (mic_enabled) {
         tu_fifo_t* tx_fifo = tud_audio_get_ep_in_ff();
